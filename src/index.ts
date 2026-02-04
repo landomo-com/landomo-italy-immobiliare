@@ -1,4 +1,4 @@
-import { createLogger } from '@shared/logger';
+import { createLogger } from './logger';
 /**
  * Immobiliare.it Scraper - CLI Entry Point
  *
@@ -20,8 +20,8 @@ import { createLogger } from '@shared/logger';
 
 import { program } from 'commander';
 import { ImmobiliareScraper, ITALIAN_CITIES } from './scraper.js';
-import { connectRedis, saveProperties, disconnectRedis } from '@shared/redis.js';
-import type { Property } from '@shared/types.js';
+import { connectRedis, saveProperties, disconnectRedis } from './redis';
+import type { Property } from './types';
 
 const logger = createLogger('module');
 

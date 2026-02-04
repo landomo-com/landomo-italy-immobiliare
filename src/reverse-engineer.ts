@@ -1,6 +1,6 @@
 import { chromium, Request, Response, Page, BrowserContext } from "playwright";
 import { writeFileSync, mkdirSync } from "fs";
-import { createLogger } from '@shared/logger';
+import { createLogger } from './logger';
 
 const logger = createLogger('module');
 

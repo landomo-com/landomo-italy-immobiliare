@@ -1,11 +1,11 @@
-import { createLogger } from '@shared/logger';
+import { createLogger } from './logger';
 /**
  * Parser for Immobiliare.it API responses
  *
  * Converts JSON API responses to standardized Property interface
  */
 
-import type { Property } from '@shared/types.js';
+import type { Property } from './types';
 
 const logger = createLogger('module');
 

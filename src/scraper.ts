@@ -1,4 +1,4 @@
-import { createLogger } from '@shared/logger';
+import { createLogger } from './logger';
 /**
  * Immobiliare.it Scraper
  *
@@ -13,8 +13,8 @@ import { createLogger } from '@shared/logger';
  */
 
 import { Browser, BrowserContext, Page, chromium } from 'playwright';
-import { applyStealthConfig, applyPageStealth } from '@shared/stealth.js';
-import type { Property } from '@shared/types.js';
+import { applyStealthConfig, applyPageStealth } from './stealth';
+import type { Property } from './types';
 import { parseApiResponse } from './parser.js';
 
 const BASE_URL = 'https://www.immobiliare.it';
