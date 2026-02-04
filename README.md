@@ -1,14 +1,25 @@
-# Immobiliare.it Scraper
+# Immobiliare.it Scraper - Phase 2 Architecture
 
 Scraper for [Immobiliare.it](https://www.immobiliare.it), Italy's leading real estate portal.
 
+## Architecture Overview
+
+This scraper uses a **two-phase distributed architecture** with Redis queue coordination:
+
+- **Phase 1 (Coordinator)**: Discovers listing IDs from search pages → pushes to Redis queue
+- **Phase 2 (Workers)**: Consume IDs from queue → fetch full details → send to Core Service
+
 ## Features
 
-- **JSON API Interception**: Intercepts API calls to `/api-next/search-list/listings/` for structured data
-- **DataDome Bypass**: Uses stealth Playwright to bypass DataDome bot protection
-- **Redis Storage**: Stores scraped properties in Redis for easy access
-- **CLI Interface**: Simple command-line interface with Commander.js
-- **Proxy Support**: Optional proxy configuration for enhanced stealth
+- **Redis Queue Architecture**: Distributed processing with multiple workers
+- **DataDome Bypass**: Uses stealth Playwright to bypass bot protection
+- **Change Detection**: Checksum-based tracking to detect property updates
+- **Scraper DB (Tier 1)**: PostgreSQL database for raw data and change history
+- **Adaptive Scheduling**: Scrape frequency adapts based on change rates
+- **Missing Property Detection**: Identifies removed/sold properties
+- **Prometheus Metrics**: (TODO) Monitoring and observability
+- **Docker Deployment**: Containerized with docker-compose
+- **Proxy Support**: Residential proxy integration for DataDome bypass
 
 ## Installation
 
@@ -16,41 +27,81 @@ Scraper for [Immobiliare.it](https://www.immobiliare.it), Italy's leading real e
 npm install
 ```
 
-## Usage
+## Quick Start
 
-### Basic Usage
-
-```bash
-# Test with Milano, limit 5 properties
-npm test
-
-# Or using tsx directly
-tsx src/index.ts --location milano --limit 5
-```
-
-### Advanced Usage
+### 1. Setup Environment
 
 ```bash
-# Scrape Rome with 10 properties for rent
-tsx src/index.ts --location roma --transactionType rent --limit 10
-
-# Scrape Naples, up to 5 pages
-tsx src/index.ts --location napoli --maxPages 5
-
-# Run with visible browser (non-headless)
-tsx src/index.ts --location firenze --no-headless --limit 5
+cp .env.example .env
+# Edit .env with your settings
 ```
 
-### Available Options
+### 2. Start Infrastructure (Docker)
 
-- `--location <city>` - City to scrape (default: milano)
-  - Available: milano, roma, napoli, torino, firenze, bologna, genova, palermo, venezia, verona, bari, catania, trieste, padova, brescia
-- `--transactionType <sale|rent>` - Transaction type (default: sale)
-- `--limit <number>` - Maximum properties to scrape
-- `--maxPages <number>` - Maximum pages per city (default: 3)
-- `--headless <true|false>` - Run browser in headless mode (default: true)
-- `--no-headless` - Run browser with visible window
-- `--help` - Show help message
+```bash
+docker-compose up -d redis postgres
+```
+
+### 3. Initialize Database
+
+```bash
+psql -U landomo -h localhost -d scraper_italy_immobiliare < schema.sql
+```
+
+### 4. Run Coordinator (Phase 1)
+
+```bash
+npm run coordinator
+```
+
+Discovers all listing IDs and pushes to Redis queue.
+
+### 5. Run Workers (Phase 2)
+
+```bash
+# Single worker
+npm run worker
+
+# Multiple workers (3 instances)
+docker-compose up -d worker
+```
+
+Workers fetch property details and send to Core Service.
+
+### 6. Monitor Progress
+
+```bash
+npm run queue:stats
+```
+
+## Commands
+
+### Coordinator
+```bash
+npm run coordinator          # Discover listing IDs (all cities)
+```
+
+### Workers
+```bash
+npm run worker              # Start single worker
+npm run worker:verifier     # Verify missing properties
+```
+
+### Queue Management
+```bash
+npm run queue:stats         # Show queue statistics
+npm run queue:clear         # Clear all queue data
+npm run queue:retry-failed  # Retry failed listings
+npm run queue:show-failed   # Show failed listing IDs
+```
+
+### Docker
+```bash
+docker-compose up -d                    # Start all services
+docker-compose up -d --scale worker=5   # Scale to 5 workers
+docker-compose logs -f worker           # View worker logs
+docker-compose down                     # Stop all services
+```
 
 ## How It Works
 

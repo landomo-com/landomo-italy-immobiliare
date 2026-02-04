@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # Redis - Queue and caching
+  redis:
+    image: redis:7-alpine
+    container_name: immobiliare-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # PostgreSQL - Scraper DB (Tier 1)
+  postgres:
+    image: postgres:15-alpine
+    container_name: immobiliare-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=scraper_italy_immobiliare
+      - POSTGRES_USER=landomo
+      - POSTGRES_PASSWORD=landomo_pass
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U landomo"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # Coordinator - Listing discovery (runs on schedule)
+  coordinator:
+    build: .
+    container_name: immobiliare-coordinator
+    command: npm run coordinator
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=scraper_italy_immobiliare
+      - POSTGRES_USER=landomo
+      - POSTGRES_PASSWORD=landomo_pass
+      - LANDOMO_API_URL=${LANDOMO_API_URL}
+      - LANDOMO_API_KEY=${LANDOMO_API_KEY}
+      - TRANSACTION_TYPE=${TRANSACTION_TYPE:-sale}
+      - HEADLESS=${HEADLESS:-true}
+      - PROXY_SERVER=${PROXY_SERVER}
+      - PROXY_USERNAME=${PROXY_USERNAME}
+      - PROXY_PASSWORD=${PROXY_PASSWORD}
+      - DEBUG=${DEBUG:-false}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: "no"  # Use external scheduler (cron, k8s CronJob, etc.)
+
+  # Workers - Process details from queue (scale with replicas)
+  worker:
+    build: .
+    command: npm run worker
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=scraper_italy_immobiliare
+      - POSTGRES_USER=landomo
+      - POSTGRES_PASSWORD=landomo_pass
+      - LANDOMO_API_URL=${LANDOMO_API_URL}
+      - LANDOMO_API_KEY=${LANDOMO_API_KEY}
+      - TRANSACTION_TYPE=${TRANSACTION_TYPE:-sale}
+      - REQUEST_DELAY_MS=${REQUEST_DELAY_MS:-2000}
+      - HEADLESS=${HEADLESS:-true}
+      - PROXY_SERVER=${PROXY_SERVER}
+      - PROXY_USERNAME=${PROXY_USERNAME}
+      - PROXY_PASSWORD=${PROXY_PASSWORD}
+      - DEBUG=${DEBUG:-false}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    deploy:
+      replicas: 3  # Run 3 workers in parallel
+    restart: unless-stopped
+
+  # Queue Stats Monitor (optional)
+  stats:
+    build: .
+    container_name: immobiliare-stats
+    command: npm run queue:stats
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    profiles:
+      - tools  # Only run when explicitly requested
+
+volumes:
+  redis-data:
+    driver: local
+  postgres-data:
+    driver: local
+
+networks:
+  default:
+    name: immobiliare-network
