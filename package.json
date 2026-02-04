@@ -1,0 +1,25 @@
+{
+  "name": "@landomo/scraper-italy-immobiliare",
+  "version": "2.0.0",
+  "description": "Scraper for immobiliare.it - uses stealth Playwright to bypass DataDome",
+  "type": "module",
+  "scripts": {
+    "scrape": "tsx src/index.ts",
+    "test": "tsx src/index.ts --location milano --limit 5",
+    "scrape:sale": "tsx src/index.ts --transactionType sale",
+    "scrape:rent": "tsx src/index.ts --transactionType rent",
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "playwright": "^1.49.1",
+    "commander": "^11.1.0",
+    "redis": "^4.6.13"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.3"
+  }
+}
